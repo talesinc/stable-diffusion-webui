@@ -1,6 +1,8 @@
 import base64
+import boto3
 import io
 import time
+import uuid
 import datetime
 import uvicorn
 import gradio as gr
@@ -71,7 +73,7 @@ def decode_base64_to_image(encoding):
         raise HTTPException(status_code=500, detail="Invalid encoded image") from e
 
 
-def encode_pil_to_base64(image):
+def encode_pil_to_bytes(image):
     with io.BytesIO() as output_bytes:
 
         if opts.samples_format.lower() == 'png':
@@ -97,8 +99,20 @@ def encode_pil_to_base64(image):
             raise HTTPException(status_code=500, detail="Invalid image format")
 
         bytes_data = output_bytes.getvalue()
+        return bytes_data
 
+
+def encode_pil_to_base64(image):
+    bytes_data = encode_pil_to_bytes(image)
     return base64.b64encode(bytes_data)
+
+
+def upload_pil_to_s3(image):
+    bytes_data = encode_pil_to_bytes(image)
+    s3 = boto3.client('s3')
+    filename = f"{str(uuid.uuid4())}.png"
+    s3.put_object(Body=bytes_data, Bucket="lit-server", Key=f"generated/{filename}")
+    return filename
 
 
 def api_middleware(app: FastAPI):
@@ -321,6 +335,7 @@ class Api:
         script_args = self.init_script_args(txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner)
 
         send_images = args.pop('send_images', True)
+        save_images_to_s3 = args.pop('save_images_to_s3', False)
         args.pop('save_images', None)
 
         with self.queue_lock:
@@ -338,9 +353,10 @@ class Api:
                 processed = process_images(p)
             shared.state.end()
 
-        b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
+        b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []        
+        s3keys = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
 
-        return models.TextToImageResponse(images=b64images, parameters=vars(txt2imgreq), info=processed.js())
+        return models.TextToImageResponse(images=b64images, imageS3Keys=s3keys, parameters=vars(txt2imgreq), info=processed.js())
 
     def img2imgapi(self, img2imgreq: models.StableDiffusionImg2ImgProcessingAPI):
         init_images = img2imgreq.init_images
@@ -377,6 +393,7 @@ class Api:
         script_args = self.init_script_args(img2imgreq, self.default_script_arg_img2img, selectable_scripts, selectable_script_idx, script_runner)
 
         send_images = args.pop('send_images', True)
+        save_images_to_s3 = args.pop('save_images_to_s3', True)
         args.pop('save_images', None)
 
         with self.queue_lock:
@@ -396,12 +413,14 @@ class Api:
             shared.state.end()
 
         b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
+        s3keys = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
+
 
         if not img2imgreq.include_init_images:
             img2imgreq.init_images = None
             img2imgreq.mask = None
 
-        return models.ImageToImageResponse(images=b64images, parameters=vars(img2imgreq), info=processed.js())
+        return models.ImageToImageResponse(images=b64images, imageS3Keys=s3keys, parameters=vars(img2imgreq), info=processed.js())
 
     def extras_single_image_api(self, req: models.ExtrasSingleImageRequest):
         reqDict = setUpscalers(req)

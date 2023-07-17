@@ -129,11 +129,13 @@ StableDiffusionImg2ImgProcessingAPI = PydanticModelGenerator(
 
 class TextToImageResponse(BaseModel):
     images: List[str] = Field(default=None, title="Image", description="The generated image in base64 format.")
+    imageS3Keys: List[str] = Field(default=None, title="Image S3 Keys", description="The generated image in S3.")
     parameters: dict
     info: str
 
 class ImageToImageResponse(BaseModel):
     images: List[str] = Field(default=None, title="Image", description="The generated image in base64 format.")
+    imageS3Keys: List[str] = Field(default=None, title="Image S3 Keys", description="The generated image in S3.")
     parameters: dict
     info: str
 
