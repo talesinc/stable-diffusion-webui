@@ -354,9 +354,9 @@ class Api:
             shared.state.end()
 
         b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []        
-        s3keys = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
+        s3_filenames = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
 
-        return models.TextToImageResponse(images=b64images, imageS3Keys=s3keys, parameters=vars(txt2imgreq), info=processed.js())
+        return models.TextToImageResponse(images=b64images, s3_filenames=s3_filenames, parameters=vars(txt2imgreq), info=processed.js())
 
     def img2imgapi(self, img2imgreq: models.StableDiffusionImg2ImgProcessingAPI):
         init_images = img2imgreq.init_images
@@ -413,14 +413,14 @@ class Api:
             shared.state.end()
 
         b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
-        s3keys = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
+        s3_filenames = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
 
 
         if not img2imgreq.include_init_images:
             img2imgreq.init_images = None
             img2imgreq.mask = None
 
-        return models.ImageToImageResponse(images=b64images, imageS3Keys=s3keys, parameters=vars(img2imgreq), info=processed.js())
+        return models.ImageToImageResponse(images=b64images, s3_filenames=s3_filenames, parameters=vars(img2imgreq), info=processed.js())
 
     def extras_single_image_api(self, req: models.ExtrasSingleImageRequest):
         reqDict = setUpscalers(req)
