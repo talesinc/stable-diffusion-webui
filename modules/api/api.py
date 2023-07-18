@@ -336,7 +336,6 @@ class Api:
         script_args = self.init_script_args(txt2imgreq, self.default_script_arg_txt2img, selectable_scripts, selectable_script_idx, script_runner)
 
         send_images = args.pop('send_images', True)
-        save_images_to_s3 = args.pop('save_images_to_s3', False)
         args.pop('save_images', None)
 
         with self.queue_lock:
@@ -355,7 +354,7 @@ class Api:
             shared.state.end()
 
         b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []        
-        s3_filenames = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
+        s3_filenames = list(map(upload_pil_to_s3, processed.images))
 
         return models.TextToImageResponse(images=b64images, s3_filenames=s3_filenames, parameters=vars(txt2imgreq), info=processed.js())
 
@@ -394,7 +393,6 @@ class Api:
         script_args = self.init_script_args(img2imgreq, self.default_script_arg_img2img, selectable_scripts, selectable_script_idx, script_runner)
 
         send_images = args.pop('send_images', True)
-        save_images_to_s3 = args.pop('save_images_to_s3', True)
         args.pop('save_images', None)
 
         with self.queue_lock:
@@ -414,7 +412,7 @@ class Api:
             shared.state.end()
 
         b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
-        s3_filenames = list(map(upload_pil_to_s3, processed.images)) if save_images_to_s3 else []
+        s3_filenames = list(map(upload_pil_to_s3, processed.images))
 
 
         if not img2imgreq.include_init_images:
