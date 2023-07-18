@@ -112,6 +112,7 @@ def upload_pil_to_s3(image):
     s3 = boto3.client('s3')
     filename = f"{str(uuid.uuid4())}.png"
     s3.put_object(Body=bytes_data, Bucket="lit-server", Key=f"generated/{filename}", ACL="public-read")
+    print(f"Uploaded image to generated/{filename}.")
     return filename
 
 
